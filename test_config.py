@@ -1,5 +1,6 @@
 from app.config import get_settings
 
+
 settings = get_settings()
 print(f"MongoDB URL: {settings.mongodb_url}")
 print(f"Database Name: {settings.database_name}")

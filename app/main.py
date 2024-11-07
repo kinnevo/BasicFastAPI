@@ -1,19 +1,26 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from motor.motor_asyncio import AsyncIOMotorClient
+from fastapi.middleware.cors import CORSMiddleware
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from typing import Annotated, Any
 from .config import get_settings
 from .routes import user
 
-app = FastAPI(title="BasicFastAPI")
-settings = get_settings()
+class AppState(FastAPI):
+    mongodb_client: AsyncIOMotorClient
+    mongodb: AsyncIOMotorDatabase
 
-@app.on_event("startup")
-async def startup_db_client():
-    app.mongodb_client = AsyncIOMotorClient(settings.mongodb_url) # type: ignore
+@asynccontextmanager
+async def lifespan(app: AppState):
+    # Startup
+    app.mongodb_client = AsyncIOMotorClient(settings.mongodb_url)
     app.mongodb = app.mongodb_client[settings.database_name]
+    yield
+    # Shutdown
+    app.mongodb_client.close()
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    app.mongodb_client.close() # type: ignore
+settings = get_settings()
+app = AppState(title="BasicFastAPI", lifespan=lifespan)
 
 app.include_router(user.router, prefix="/users", tags=["users"])
 
